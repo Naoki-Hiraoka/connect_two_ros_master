@@ -65,18 +65,8 @@ int main(int argc, char** argv) {
 
   for(int i=0;i<topics.size();i++){
     subs.push_back(nh.subscribe<topic_tools::ShapeShifter>(topics[i], 1, [&,i](const topic_tools::ShapeShifter::ConstPtr& topic_msg){
-          if(topics[i].length()+1 +
-             topic_msg->getMD5Sum().length()+1 +
-             topic_msg->getDataType().length()+1 +
-             topic_msg->getMessageDefinition().length()+1 +
-             topic_msg->size()
-             > datasize){
-            std::cerr << "sizeof [" << topics[i] << "] " <<
-              topics[i].length()+1 +
-              topic_msg->getMD5Sum().length()+1 +
-              topic_msg->getDataType().length()+1 +
-              topic_msg->getMessageDefinition().length()+1 +
-              topic_msg->size() << " > " << datasize << std::endl;
+          if(topics[i].length()+1 + topic_msg->getMD5Sum().length()+1 + topic_msg->getDataType().length()+1 + topic_msg->getMessageDefinition().length()+1 + topic_msg->size() > datasize){
+            std::cerr << "sizeof [" << topics[i] << "] " << topics[i].length()+1 + topic_msg->getMD5Sum().length()+1 + topic_msg->getDataType().length()+1 + topic_msg->getMessageDefinition().length()+1 + topic_msg->size() << " > " << datasize << std::endl;
             exit(1);
           }
           int idx=0;
@@ -107,7 +97,6 @@ int main(int argc, char** argv) {
       ros::serialization::OStream ostream((uint8_t*)buffer+idx, rcv_size-idx);
       shape_shifter.read(ostream);
       if(pubMap.find(topicName)==pubMap.end()){
-        std::cerr <<topicName <<std::endl;
         pubMap[topicName] = shape_shifter.advertise(nh, topicName, 1);
       }
       pubMap[topicName].publish(shape_shifter);
