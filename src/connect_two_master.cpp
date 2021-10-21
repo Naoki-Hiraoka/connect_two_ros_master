@@ -1,7 +1,7 @@
 #include <unordered_map>
 #include <ros/ros.h>
+#include <ros/console.h>
 #include <topic_tools/shape_shifter.h>
-#include <ros/serialization.h>
 #include <boost/interprocess/ipc/message_queue.hpp>
 #include <sys/ipc.h>
 
@@ -38,20 +38,19 @@ int main(int argc, char** argv) {
                                           (ros::this_node::getName()+(slaveside?"MASTER":"SLAVE")).c_str(),
                                           queuesize,
                                           datasize);
-  // clear shm. (大昔のデータが残っている場合がある))
+  // clear shm. (大昔のデータが残っている場合がある)
   {
     uint64_t rcv_size;
     unsigned priority;
     while(rcvq.try_receive(buffer, sizeof(buffer), rcv_size, priority)) continue;
   }
 
+  // setup subscribers
   std::vector<ros::Subscriber> subs;
-  std::unordered_map<std::string, ros::Publisher> pubMap;
-
   for(int i=0;i<topics.size();i++){
     subs.push_back(nh.subscribe<topic_tools::ShapeShifter>(topics[i], 1, [&,i](const topic_tools::ShapeShifter::ConstPtr& topic_msg){
           if(topics[i].length()+1 + topic_msg->getMD5Sum().length()+1 + topic_msg->getDataType().length()+1 + topic_msg->getMessageDefinition().length()+1 + topic_msg->size() > datasize){
-            std::cerr << "sizeof [" << topics[i] << "] " << topics[i].length()+1 + topic_msg->getMD5Sum().length()+1 + topic_msg->getDataType().length()+1 + topic_msg->getMessageDefinition().length()+1 + topic_msg->size() << " > " << datasize << std::endl;
+            ROS_ERROR_STREAM("sizeof [" << topics[i] << "] " << topics[i].length()+1 + topic_msg->getMD5Sum().length()+1 + topic_msg->getDataType().length()+1 + topic_msg->getMessageDefinition().length()+1 + topic_msg->size() << " > " << datasize);
             exit(1);
           }
           int idx=0;
@@ -65,8 +64,9 @@ int main(int argc, char** argv) {
         }));
   }
 
+  // main loop
+  std::unordered_map<std::string, ros::Publisher> pubMap;
   ros::Rate r(1000);
-
   while(ros::ok()){
     while(true){
       uint64_t rcv_size;
@@ -89,8 +89,6 @@ int main(int argc, char** argv) {
     ros::spinOnce();
     r.sleep();
   }
-
-
 
   return 0;
 }
