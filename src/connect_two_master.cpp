@@ -1,24 +1,9 @@
-#include <ros/ros.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <sys/wait.h>
-#include <topic_tools/shape_shifter.h>
 #include <unordered_map>
-#include <string>
-#include <memory>
-#include <sys/ipc.h>
-
+#include <ros/ros.h>
+#include <topic_tools/shape_shifter.h>
 #include <ros/serialization.h>
 #include <boost/interprocess/ipc/message_queue.hpp>
-
-struct Data {
-  char topicName[100];
-  char md5sum[100];
-  char datatype[100];
-  char definition[100];
-  uint8_t data[1000000];
-  int size;
-};
+#include <sys/ipc.h>
 
 int main(int argc, char** argv) {
   // init node
