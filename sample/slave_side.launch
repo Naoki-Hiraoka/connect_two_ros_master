@@ -1,0 +1,9 @@
+<launch>
+  <node pkg="connect_two_ros_master" type="connect_two_master" name="connect_two_master">
+    <rosparam>
+      slaveside: true
+    </rosparam>
+  </node>
+
+  <node pkg="roscpp_tutorials" type="listener" name="listener" output="screen"/>
+</launch>
