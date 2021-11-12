@@ -4,7 +4,6 @@
 #include <topic_tools/shape_shifter.h>
 #include <boost/interprocess/ipc/message_queue.hpp>
 #include <sys/ipc.h>
-#include <mutex>
 
 int main(int argc, char** argv) {
   // init node
@@ -22,8 +21,6 @@ int main(int argc, char** argv) {
   if(pnh.hasParam("queuesize")) pnh.getParam("queuesize", queuesize);
   bool reallocate = false;
   if(pnh.hasParam("reallocate")) pnh.getParam("reallocate", reallocate);
-
-  char buffer[datasize];
 
   if(reallocate){
     boost::interprocess::message_queue::remove((ros::this_node::getName()+(slaveside?"SLAVE":"MASTER")).c_str());
@@ -43,12 +40,12 @@ int main(int argc, char** argv) {
   {
     uint64_t rcv_size;
     unsigned priority;
+    char buffer[datasize];
     while(rcvq.try_receive(buffer, sizeof(buffer), rcv_size, priority)) continue;
   }
 
   // setup subscribers
   std::vector<ros::Subscriber> subs;
-  std::mutex mutex;
   for(int i=0;i<topics.size();i++){
     subs.push_back(nh.subscribe<topic_tools::ShapeShifter>(topics[i], 1, [&,i](const topic_tools::ShapeShifter::ConstPtr& topic_msg){
           if(topics[i].length()+1 + topic_msg->getMD5Sum().length()+1 + topic_msg->getDataType().length()+1 + topic_msg->getMessageDefinition().length()+1 + topic_msg->size() > datasize){
@@ -56,27 +53,26 @@ int main(int argc, char** argv) {
             exit(1);
           }
           int idx=0;
+          char buffer[datasize];
           strcpy(buffer+idx,topics[i].c_str()); idx+=topics[i].length()+1;
           strcpy(buffer+idx,topic_msg->getMD5Sum().c_str()); idx+=topic_msg->getMD5Sum().length()+1;
           strcpy(buffer+idx,topic_msg->getDataType().c_str()); idx+=topic_msg->getDataType().length()+1;
           strcpy(buffer+idx,topic_msg->getMessageDefinition().c_str()); idx+=topic_msg->getMessageDefinition().length()+1;
           ros::serialization::OStream stream((uint8_t*)buffer+idx, topic_msg->size());
           topic_msg->write(stream); idx+=topic_msg->size();
-          {
-            std::lock_guard<std::mutex> guard(mutex);
-            sndq.try_send(buffer, idx, 0 );
-          }
+          sndq.try_send(buffer, idx, 0 );
         },
         ros::VoidConstPtr(),
         ros::TransportHints().tcpNoDelay()));
   }
 
-  //ros::AsyncSpinner spinner(4); // Use 1 threads
-  //spinner.start();
+  ros::AsyncSpinner spinner(1); // Use 1 threads
+  spinner.start();
 
   // main loop
   std::unordered_map<std::string, ros::Publisher> pubMap;
-  ros::Rate r(1000);
+  ros::Rate r(1000.0);
+  char buffer[datasize];
   while(ros::ok()){
     while(true){
       uint64_t rcv_size;
@@ -96,7 +92,7 @@ int main(int argc, char** argv) {
       }
       pubMap[topicName].publish(shape_shifter);
     }
-    ros::spinOnce();
+    //ros::spinOnce();
     r.sleep();
   }
 
